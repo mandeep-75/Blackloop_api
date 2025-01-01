@@ -1,5 +1,9 @@
-const fetch = require('node-fetch'); // You can install it with npm install node-fetch
-const atob = require('atob'); // Install with npm install atob
+// api/streams.js
+const express = require('express');
+const fetch = require('node-fetch');
+const atob = require('atob');
+
+const app = express();
 
 const autoembed = 'YXV0b2VtYmVkLmNj';
 
@@ -115,10 +119,21 @@ async function getStreamingLinks(imdbId, type) {
   }
 }
 
-// Example usage
-(async () => {
-  const imdbId = 'tt0468569'; // Replace with the actual IMDb ID
-  const type = 'movie'; // Use 'movie' or 'tv'
-  const streams = await getStreamingLinks(imdbId, type);
-  console.log('Streaming Links:', streams);
-})();
+// API route
+app.get('/api/streams', async (req, res) => {
+  const { imdbId, type } = req.query;
+
+  if (!imdbId || !type) {
+    return res.status(400).json({ error: 'Missing imdbId or type parameter' });
+  }
+
+  try {
+    const streams = await getStreamingLinks(imdbId, type);
+    res.json({ streams });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch streaming links', details: err.message });
+  }
+});
+
+// Export the app for Vercel
+module.exports = app;
