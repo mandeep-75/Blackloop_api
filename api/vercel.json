@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/getStreamingLinks.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/streams",
+      "dest": "/api/getStreamingLinks.js"
+    }
+  ]
+}
