@@ -1,7 +1,7 @@
-// api/streams.js
-const express = require('express');
-const fetch = require('node-fetch');
-const atob = require('atob');
+import express from 'express';
+import fetch from 'node-fetch';
+import atob from 'atob';
+
 
 const app = express();
 
@@ -133,7 +133,7 @@ app.get('/api/streams', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch streaming links', details: err.message });
   }
-  
+
 });
 
 // Export the app for Vercel
