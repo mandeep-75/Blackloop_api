@@ -2,14 +2,14 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/getStreamingLinks.js",
+      "src": "api/streams.js",
       "use": "@vercel/node"
     }
   ],
   "routes": [
     {
       "src": "/api/streams",
-      "dest": "/api/getStreamingLinks.js"
+      "dest": "/api/streams.js"
     }
   ]
 }
