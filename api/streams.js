@@ -133,6 +133,7 @@ app.get('/api/streams', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch streaming links', details: err.message });
   }
+  
 });
 
 // Export the app for Vercel
