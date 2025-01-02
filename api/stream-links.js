@@ -117,6 +117,18 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'IMDb ID and type are required.' });
   }
 
+  // Handle CORS for specific origin (https://movies-react.vercel.app/)
+  const allowedOrigin = 'https://movies-react.vercel.app/';
+  const origin = req.headers.origin;
+
+  if (origin && origin === allowedOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin); // Allow only the specific origin
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', ''); // Deny access to others
+  }
+
   try {
     const streams = await getStreamingLinks(imdbId, type);
     res.json({ streams });
