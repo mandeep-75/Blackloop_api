@@ -2,14 +2,11 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/streams.js",
+      "src": "api/*.ts",
       "use": "@vercel/node"
     }
   ],
   "routes": [
-    {
-      "src": "/api/streams",
-      "dest": "/api/streams.js"
-    }
+    { "src": "/stream-links", "dest": "/api/stream-links.ts" }
   ]
 }

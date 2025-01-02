@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "es2020",                       // Target modern JavaScript
+    "module": "commonjs",                     // Use CommonJS for Node.js
+    "strict": true,                           // Enable all strict type-checking options
+    "esModuleInterop": true,                  // Allow default imports for CommonJS modules
+    "moduleResolution": "node",               // Resolve modules in Node.js style
+    "outDir": "./dist",                       // Output directory for compiled files
+    "rootDir": "./",                          // Root directory of the source files
+    "skipLibCheck": true,                     // Skip type checking for declaration files
+    "forceConsistentCasingInFileNames": true  // Enforce consistent file naming
+  },
+  "include": ["api/**/*.ts"],                 // Include your API folder
+  "exclude": ["node_modules"]                 // Exclude node_modules from compilation
+}

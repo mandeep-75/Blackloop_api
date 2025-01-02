@@ -1,19 +1,26 @@
-import express from 'express';
+import { VercelRequest, VercelResponse } from '@vercel/node';
 import fetch from 'node-fetch';
-import atob from 'atob';
 
+type Links = {
+  lang: string;
+  url: string;
+};
 
-const app = express();
+type Stream = {
+  server: string;
+  link: string;
+  type: string;
+  subtitles?: any[];
+  headers?: Record<string, string>;
+};
 
 const autoembed = 'YXV0b2VtYmVkLmNj';
 
-// Decode base64 string
-function decodeBase64(encoded) {
-  return atob(encoded);
+function decodeBase64(encoded: string): string {
+  return Buffer.from(encoded, 'base64').toString('utf-8');
 }
 
-// Fetch HTML from a URL
-async function fetchHTML(url) {
+async function fetchHTML(url: string): Promise<string> {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch URL: ${url}, Status: ${res.status}`);
@@ -21,11 +28,10 @@ async function fetchHTML(url) {
   return res.text();
 }
 
-// Extract links from HTML
-async function extractLinks(url) {
+async function extractLinks(url: string): Promise<Links[]> {
   try {
     const html = await fetchHTML(url);
-    const links = [];
+    const links: Links[] = [];
     const regex = /"title":\s*"([^"]+)",\s*"file":\s*"([^"]+)"/g;
 
     let match;
@@ -40,10 +46,9 @@ async function extractLinks(url) {
   }
 }
 
-// Get streaming links from different servers
-async function getStreamingLinks(imdbId, type) {
+async function getStreamingLinks(imdbId: string, type: string): Promise<Stream[]> {
   try {
-    const streams = [];
+    const streams: Stream[] = [];
 
     // Server 1
     const server1Url =
@@ -119,22 +124,18 @@ async function getStreamingLinks(imdbId, type) {
   }
 }
 
-// API route
-app.get('/api/streams', async (req, res) => {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { imdbId, type } = req.query;
 
   if (!imdbId || !type) {
-    return res.status(400).json({ error: 'Missing imdbId or type parameter' });
+    return res.status(400).json({ error: 'IMDb ID and type are required.' });
   }
 
   try {
-    const streams = await getStreamingLinks(imdbId, type);
+    const streams = await getStreamingLinks(imdbId as string, type as string);
     res.json({ streams });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch streaming links', details: err.message });
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch streaming links.' });
   }
-
-});
-
-// Export the app for Vercel
-module.exports = app;
+}
