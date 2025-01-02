@@ -5,5 +5,11 @@
       "src": "api/stream-links.js",
       "use": "@vercel/node"
     }
+  ],
+  "routes": [
+    {
+      "src": "/api/stream-links",
+      "dest": "/api/stream-links.js"
+    }
   ]
 }
