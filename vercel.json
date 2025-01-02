@@ -2,11 +2,8 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/*.ts",
+      "src": "api/stream-links.js",
       "use": "@vercel/node"
     }
-  ],
-  "routes": [
-    { "src": "/stream-links", "dest": "/api/stream-links.ts" }
   ]
 }

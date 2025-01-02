@@ -3,16 +3,12 @@
 	"version": "1.0.0",
 	"type": "module",
 	"scripts": {
-	  "start": "node api.js",
-	  "dev": "nodemon api.js"
+		"start": "node api.js",
+		"dev": "nodemon api.js"
 	},
 	"dependencies": {
-	  "express": "^4.21.2",
-	  "node-fetch": "^3.3.2",
-	  "@vercel/node": "^5.0.0"
-	},
-	"devDependencies": {
-	  "typescript": "^5.7.2"
+		"@vercel/node": "^5.0.0",
+		"express": "^4.21.2",
+		"node-fetch": "^3.3.2"
 	}
-  }
-  
+}

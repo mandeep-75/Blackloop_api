@@ -1,26 +1,12 @@
-import { VercelRequest, VercelResponse } from '@vercel/node';
 import fetch from 'node-fetch';
-
-type Links = {
-  lang: string;
-  url: string;
-};
-
-type Stream = {
-  server: string;
-  link: string;
-  type: string;
-  subtitles?: any[];
-  headers?: Record<string, string>;
-};
 
 const autoembed = 'YXV0b2VtYmVkLmNj';
 
-function decodeBase64(encoded: string): string {
-  return Buffer.from(encoded, 'base64').toString('utf-8');
+function decodeBase64(encoded) {
+  return atob(encoded);
 }
 
-async function fetchHTML(url: string): Promise<string> {
+async function fetchHTML(url) {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to fetch URL: ${url}, Status: ${res.status}`);
@@ -28,10 +14,10 @@ async function fetchHTML(url: string): Promise<string> {
   return res.text();
 }
 
-async function extractLinks(url: string): Promise<Links[]> {
+async function extractLinks(url) {
   try {
     const html = await fetchHTML(url);
-    const links: Links[] = [];
+    const links = [];
     const regex = /"title":\s*"([^"]+)",\s*"file":\s*"([^"]+)"/g;
 
     let match;
@@ -46,9 +32,9 @@ async function extractLinks(url: string): Promise<Links[]> {
   }
 }
 
-async function getStreamingLinks(imdbId: string, type: string): Promise<Stream[]> {
+async function getStreamingLinks(imdbId, type) {
   try {
-    const streams: Stream[] = [];
+    const streams = [];
 
     // Server 1
     const server1Url =
@@ -124,7 +110,7 @@ async function getStreamingLinks(imdbId: string, type: string): Promise<Stream[]
   }
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req, res) {
   const { imdbId, type } = req.query;
 
   if (!imdbId || !type) {
@@ -132,10 +118,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const streams = await getStreamingLinks(imdbId as string, type as string);
+    const streams = await getStreamingLinks(imdbId, type);
     res.json({ streams });
   } catch (err) {
-    console.error(err);
+    console.error('Error fetching streaming links:', err);
     res.status(500).json({ error: 'Failed to fetch streaming links.' });
   }
 }
