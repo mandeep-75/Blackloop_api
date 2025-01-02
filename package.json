@@ -1,5 +1,6 @@
 {
 	"dependencies": {
+		 "type": "module",
 		"express": "^4.21.2",
 		"node-fetch": "^3.3.2",
 		"@vercel/node": "^5.0.0",
