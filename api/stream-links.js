@@ -1,6 +1,5 @@
 import fetch from 'node-fetch';
-
-const autoembed = 'YXV0b2VtYmVkLmNj';
+const Link = 'YXV0b2VtYmVkLmNj';
 
 function decodeBase64(encoded) {
   return atob(encoded);
@@ -39,8 +38,8 @@ async function getStreamingLinks(imdbId, type) {
     // Server 1
     const server1Url =
       type === 'movie'
-        ? `https://${decodeBase64(autoembed)}/embed/oplayer.php?id=${imdbId}`
-        : `https://${decodeBase64(autoembed)}/embed/oplayer.php?id=${imdbId}&s=1&e=1`;
+        ? `https://${decodeBase64(Link)}/embed/oplayer.php?id=${imdbId}`
+        : `https://${decodeBase64(Link)}/embed/oplayer.php?id=${imdbId}&s=1&e=1`;
     const links1 = await extractLinks(server1Url);
     links1.forEach(({ lang, url }) => {
       streams.push({
@@ -53,8 +52,8 @@ async function getStreamingLinks(imdbId, type) {
     // Server 4
     const server4Url =
       type === 'movie'
-        ? `https://${decodeBase64(autoembed)}/embed/player.php?id=${imdbId}`
-        : `https://${decodeBase64(autoembed)}/embed/player.php?id=${imdbId}&s=1&e=1`;
+        ? `https://${decodeBase64(Link)}/embed/player.php?id=${imdbId}`
+        : `https://${decodeBase64(Link)}/embed/player.php?id=${imdbId}&s=1&e=1`;
     const links4 = await extractLinks(server4Url);
     links4.forEach(({ lang, url }) => {
       streams.push({
@@ -67,8 +66,8 @@ async function getStreamingLinks(imdbId, type) {
     // Server 3
     const server3Url =
       type === 'movie'
-        ? `https://viet.${decodeBase64(autoembed)}/movie/${imdbId}`
-        : `https://viet.${decodeBase64(autoembed)}/tv/${imdbId}/1/1`;
+        ? `https://viet.${decodeBase64(Link)}/movie/${imdbId}`
+        : `https://viet.${decodeBase64(Link)}/tv/${imdbId}/1/1`;
     const links3 = await extractLinks(server3Url);
     links3.forEach(({ lang, url }) => {
       streams.push({
@@ -81,14 +80,14 @@ async function getStreamingLinks(imdbId, type) {
     // Server 5
     const server5Url =
       type === 'movie'
-        ? `https://tom.${decodeBase64(autoembed)}/api/getVideoSource?type=movie&id=${imdbId}`
-        : `https://tom.${decodeBase64(autoembed)}/api/getVideoSource?type=tv&id=${imdbId}/1/1`;
+        ? `https://tom.${decodeBase64(Link)}/api/getVideoSource?type=movie&id=${imdbId}`
+        : `https://tom.${decodeBase64(Link)}/api/getVideoSource?type=tv&id=${imdbId}/1/1`;
     try {
       const res = await fetch(server5Url, {
         headers: {
           'user-agent':
             'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:101.0) Gecko/20100101 Firefox/101.0',
-          Referer: `https://${decodeBase64(autoembed)}/`,
+          Referer: `https://${decodeBase64(Link)}/`,
         },
       });
       const data = await res.json();
