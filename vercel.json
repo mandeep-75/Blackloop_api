@@ -17,7 +17,7 @@
     },
     {
       "src": "api/get-qualities",
-      "use": "api/get-qualities.js"
+      "dest": "api/get-qualities.js"
     }
   ]
 }
