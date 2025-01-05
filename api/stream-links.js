@@ -80,7 +80,30 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
       });
     });
 
-   
+    // Server 5
+    const server5Url =
+      type === 'movie'
+        ? `https://tom.${decodeBase64(Link)}/api/getVideoSource?type=movie&id=${imdbId}`
+        : `https://tom.${decodeBase64(Link)}/api/getVideoSource?type=tv&id=${imdbId}${seasonQuery}/${episode || 1}`;
+    try {
+      const res = await fetch(server5Url, {
+        headers: {
+          'user-agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:101.0) Gecko/20100101 Firefox/101.0',
+          Referer: `https://${decodeBase64(Link)}/`,
+        },
+      });
+      const data = await res.json();
+      if (data.videoSource) {
+        streams.push({
+          server: 'Server 5',
+          link: data.videoSource,
+          type: 'm3u8',
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching server 5 links:', err);
+    }
 
     return streams;
   } catch (err) {
