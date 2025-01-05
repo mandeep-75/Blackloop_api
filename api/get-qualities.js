@@ -1,6 +1,6 @@
 export default async function handler(req, res) {
     // Handle CORS for specific origins
-    const allowedOrigins = ['https://movies-react.vercel.app', 'http://localhost:5173','*'];
+    const allowedOrigins = ['https://movies-react.vercel.app', 'http://localhost:5173'];
     const origin = req.headers.origin;
   
     if (origin && allowedOrigins.includes(origin)) {
