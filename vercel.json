@@ -16,8 +16,8 @@
       "dest": "/api/stream-links.js"
     },
     {
-      "src": "api/get-qualities",
-      "dest": "api/get-qualities.js"
+      "src": "/api/get-qualities",
+      "dest": "/api/get-qualities.js"
     }
   ]
 }

@@ -1,18 +1,24 @@
 export default async function handler(req, res) {
+    // Handle CORS for specific origins
     const allowedOrigins = ['https://movies-react.vercel.app', 'http://localhost:5173'];
     const origin = req.headers.origin;
   
     if (origin && allowedOrigins.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     } else {
       res.setHeader('Access-Control-Allow-Origin', '');
       return res.status(403).json({ message: 'Forbidden' });
     }
   
+    // Handle preflight requests
     if (req.method === 'OPTIONS') {
       return res.status(204).end();
+    }
+  
+    if (req.method !== 'GET') {
+      return res.status(405).json({ message: 'Method Not Allowed' });
     }
   
     const { url } = req.query;
@@ -26,7 +32,7 @@ export default async function handler(req, res) {
       const response = await fetch(decodedUrl);
   
       if (!response.ok) {
-        console.error('Failed to fetch:', response.status, response.statusText);
+        console.error('Failed to fetch m3u8 file:', response.statusText);
         return res.status(400).json({ message: 'Failed to fetch m3u8 file' });
       }
   
