@@ -1,7 +1,21 @@
 export default async function handler(req, res) {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    // Handle CORS for multiple origins
+    const allowedOrigins = ['https://movies-react.vercel.app', 'http://localhost:5173']; // Add more origins if needed
+    const origin = req.headers.origin;
+  
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin); // Allow only the specific origin
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    } else {
+      res.setHeader('Access-Control-Allow-Origin', ''); // Deny access to others
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+  
+    // Handle OPTIONS preflight request
+    if (req.method === 'OPTIONS') {
+      return res.status(204).end();
+    }
   
     if (req.method !== 'GET') {
       return res.status(405).json({ message: 'Method Not Allowed' });
