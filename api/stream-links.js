@@ -1,8 +1,8 @@
 import fetch from 'node-fetch';
-const Link = 'YXV0b2VtYmVkLmNj';
+import * as cheerio from 'cheerio';
 
 function decodeBase64(encoded) {
-  return atob(encoded);
+  return Buffer.from(encoded, 'base64').toString('utf-8');
 }
 
 async function fetchHTML(url) {
@@ -21,8 +21,8 @@ async function extractLinks(url) {
 
     let match;
     while ((match = regex.exec(html))) {
-      const [, lang, url] = match;
-      links.push({ lang, url });
+      const [, lang, link] = match;
+      links.push({ lang, link });
     }
     return links;
   } catch (err) {
@@ -31,37 +31,101 @@ async function extractLinks(url) {
   }
 }
 
-async function getStreamingLinks(imdbId, type, season = null, episode = null) {
+export default async function handler(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { tmdbId, imdbId, type, season, episode } = req.query;
+
+  if (!tmdbId || !type || (type === 'tv' && (!season || !episode))) {
+    return res.status(400).json({ error: 'Missing required parameters' });
+  }
+
   try {
     const streams = [];
+    const baseUrl = 'https://moviesapi.club';
+    const link =
+      type === 'movie'
+        ? `${baseUrl}/movie/${tmdbId}`
+        : `${baseUrl}/tv/${tmdbId}-${season}-${episode}`;
 
+    // Fetch data from moviesapi.club
+    const res1 = await fetch(link, { headers: { referer: baseUrl } });
+    const baseData = await res1.text();
+    const $ = cheerio.load(baseData);
+    const embededUrl = $('iframe').attr('src') || '';
+
+    if (embededUrl) {
+      const response = await fetch(embededUrl, {
+        credentials: 'omit',
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:101.0) Gecko/20100101 Firefox/101.0',
+          Accept:
+            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Cache-Control': 'no-cache',
+          referer: baseUrl,
+        },
+      });
+      const data2 = await response.text();
+
+      const contents =
+        data2.match(/const\s+Encrypted\s*=\s*['"]({.*})['"]/)?.[1] || '';
+
+      if (contents) {
+        const decryptRes = await fetch(
+          'https://ext.8man.me/api/decrypt?passphrase==JV[t}{trEV=Ilh5',
+          {
+            method: 'POST',
+            body: contents,
+          }
+        );
+
+        const finalData = await decryptRes.json();
+
+        if (finalData && finalData.videoUrl) {
+          const subtitles = finalData?.subtitles?.map((sub) => ({
+            title: sub?.label || 'Unknown',
+            language: sub?.label,
+            type: sub?.file?.includes('.vtt') ? 'vtt' : 'srt',
+            uri: sub?.file,
+          }));
+
+          streams.push({
+            server: 'vidstreaming',
+            type: 'm3u8',
+            subtitles,
+            link: finalData.videoUrl,
+            headers: {
+              'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:101.0) Gecko/20100101 Firefox/101.0',
+              Referer: baseUrl,
+              Origin: baseUrl,
+              Accept: '*/*',
+              'Accept-Language': 'en-US,en;q=0.5',
+            },
+          });
+        }
+      }
+    }
+
+    // Additional servers logic
+    const encodedLink = 'YXV0b2VtYmVkLmNj'; // Base64 for additional server link
     const seasonQuery = season ? `&s=${season}` : '';
     const episodeQuery = episode ? `&e=${episode}` : season ? '&e=1' : '';
 
     // Server 1
     const server1Url =
       type === 'movie'
-        ? `https://${decodeBase64(Link)}/embed/oplayer.php?id=${imdbId}`
-        : `https://${decodeBase64(Link)}/embed/oplayer.php?id=${imdbId}${seasonQuery}${episodeQuery}`;
+        ? `https://${decodeBase64(encodedLink)}/embed/oplayer.php?id=${imdbId}`
+        : `https://${decodeBase64(encodedLink)}/embed/oplayer.php?id=${imdbId}${seasonQuery}${episodeQuery}`;
     const links1 = await extractLinks(server1Url);
-    links1.forEach(({ lang, url }) => {
+    links1.forEach(({ lang, link }) => {
       streams.push({
         server: 'Server 1' + (lang ? ` - ${lang}` : ''),
-        link: url,
-        type: 'm3u8',
-      });
-    });
-
-    // Server 4
-    const server4Url =
-      type === 'movie'
-        ? `https://${decodeBase64(Link)}/embed/player.php?id=${imdbId}`
-        : `https://${decodeBase64(Link)}/embed/player.php?id=${imdbId}${seasonQuery}${episodeQuery}`;
-    const links4 = await extractLinks(server4Url);
-    links4.forEach(({ lang, url }) => {
-      streams.push({
-        server: 'Server 4' + (lang ? ` - ${lang}` : ''),
-        link: url,
+        link,
         type: 'm3u8',
       });
     });
@@ -69,73 +133,20 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
     // Server 3
     const server3Url =
       type === 'movie'
-        ? `https://viet.${decodeBase64(Link)}/movie/${imdbId}`
-        : `https://viet.${decodeBase64(Link)}/tv/${imdbId}/${season || 1}/${episode || 1}`;
+        ? `https://viet.${decodeBase64(encodedLink)}/movie/${imdbId}`
+        : `https://viet.${decodeBase64(encodedLink)}/tv/${imdbId}/${season || 1}/${episode || 1}`;
     const links3 = await extractLinks(server3Url);
-    links3.forEach(({ lang, url }) => {
+    links3.forEach(({ lang, link }) => {
       streams.push({
         server: 'Server 3' + (lang ? ` - ${lang}` : ''),
-        link: url,
+        link,
         type: 'm3u8',
       });
     });
 
-    // Server 5
-    const server5Url =
-      type === 'movie'
-        ? `https://tom.${decodeBase64(Link)}/api/getVideoSource?type=movie&id=${imdbId}`
-        : `https://tom.${decodeBase64(Link)}/api/getVideoSource?type=tv&id=${imdbId}${seasonQuery}/${episode || 1}`;
-    try {
-      const res = await fetch(server5Url, {
-        headers: {
-          'user-agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:101.0) Gecko/20100101 Firefox/101.0',
-          Referer: `https://${decodeBase64(Link)}/`,
-        },
-      });
-      const data = await res.json();
-      if (data.videoSource) {
-        streams.push({
-          server: 'Server 5',
-          link: data.videoSource,
-          type: 'm3u8',
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching server 5 links:', err);
-    }
-
-    return streams;
-  } catch (err) {
-    console.error('Error in getStreamingLinks:', err);
-    return [];
-  }
-}
-
-export default async function handler(req, res) {
-  const { imdbId, type, season, episode } = req.query;
-
-  if (!imdbId || !type) {
-    return res.status(400).json({ error: 'IMDb ID and type are required.' });
-  }
-
-  // Handle CORS for multiple origins: https://movies-react.vercel.app/ and localhost
-  const allowedOrigins = ['https://movies-react.vercel.app', 'http://localhost:5173']; // Add other localhost ports if necessary
-  const origin = req.headers.origin;
-
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin); // Allow only the specific origin
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  } else {
-    res.setHeader('Access-Control-Allow-Origin', ''); // Deny access to others
-  }
-
-  try {
-    const streams = await getStreamingLinks(imdbId, type, season, episode);
-    res.json({ streams });
-  } catch (err) {
-    console.error('Error fetching streaming links:', err);
-    res.status(500).json({ error: 'Failed to fetch streaming links.' });
+    return res.status(200).json({ streams });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
