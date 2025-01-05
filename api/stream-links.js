@@ -31,15 +31,18 @@ async function extractLinks(url) {
   }
 }
 
-async function getStreamingLinks(imdbId, type) {
+async function getStreamingLinks(imdbId, type, season = null, episode = null) {
   try {
     const streams = [];
+
+    const seasonQuery = season ? `&s=${season}` : '';
+    const episodeQuery = episode ? `&e=${episode}` : season ? '&e=1' : '';
 
     // Server 1
     const server1Url =
       type === 'movie'
         ? `https://${decodeBase64(Link)}/embed/oplayer.php?id=${imdbId}`
-        : `https://${decodeBase64(Link)}/embed/oplayer.php?id=${imdbId}&s=1&e=1`;
+        : `https://${decodeBase64(Link)}/embed/oplayer.php?id=${imdbId}${seasonQuery}${episodeQuery}`;
     const links1 = await extractLinks(server1Url);
     links1.forEach(({ lang, url }) => {
       streams.push({
@@ -53,7 +56,7 @@ async function getStreamingLinks(imdbId, type) {
     const server4Url =
       type === 'movie'
         ? `https://${decodeBase64(Link)}/embed/player.php?id=${imdbId}`
-        : `https://${decodeBase64(Link)}/embed/player.php?id=${imdbId}&s=1&e=1`;
+        : `https://${decodeBase64(Link)}/embed/player.php?id=${imdbId}${seasonQuery}${episodeQuery}`;
     const links4 = await extractLinks(server4Url);
     links4.forEach(({ lang, url }) => {
       streams.push({
@@ -67,7 +70,7 @@ async function getStreamingLinks(imdbId, type) {
     const server3Url =
       type === 'movie'
         ? `https://viet.${decodeBase64(Link)}/movie/${imdbId}`
-        : `https://viet.${decodeBase64(Link)}/tv/${imdbId}/1/1`;
+        : `https://viet.${decodeBase64(Link)}/tv/${imdbId}/${season || 1}/${episode || 1}`;
     const links3 = await extractLinks(server3Url);
     links3.forEach(({ lang, url }) => {
       streams.push({
@@ -81,7 +84,7 @@ async function getStreamingLinks(imdbId, type) {
     const server5Url =
       type === 'movie'
         ? `https://tom.${decodeBase64(Link)}/api/getVideoSource?type=movie&id=${imdbId}`
-        : `https://tom.${decodeBase64(Link)}/api/getVideoSource?type=tv&id=${imdbId}/1/1`;
+        : `https://tom.${decodeBase64(Link)}/api/getVideoSource?type=tv&id=${imdbId}${seasonQuery}/${episode || 1}`;
     try {
       const res = await fetch(server5Url, {
         headers: {
@@ -110,7 +113,7 @@ async function getStreamingLinks(imdbId, type) {
 }
 
 export default async function handler(req, res) {
-  const { imdbId, type } = req.query;
+  const { imdbId, type, season, episode } = req.query;
 
   if (!imdbId || !type) {
     return res.status(400).json({ error: 'IMDb ID and type are required.' });
@@ -129,7 +132,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const streams = await getStreamingLinks(imdbId, type);
+    const streams = await getStreamingLinks(imdbId, type, season, episode);
     res.json({ streams });
   } catch (err) {
     console.error('Error fetching streaming links:', err);
