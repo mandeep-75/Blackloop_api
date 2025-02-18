@@ -1,10 +1,20 @@
 import fetch from 'node-fetch';
+
+// Base64 encoded string for "autoembed.cc"
 const Link = 'YXV0b2VtYmVkLmNj';
 
+/**
+ * Decodes a Base64 encoded string.
+ * In Node.js, we use Buffer instead of atob.
+ */
 function decodeBase64(encoded) {
-  return atob(encoded);
+  return Buffer.from(encoded, 'base64').toString('ascii');
 }
 
+/**
+ * Fetches HTML content from the given URL.
+ * Throws an error if the response is not OK.
+ */
 async function fetchHTML(url) {
   const res = await fetch(url);
   if (!res.ok) {
@@ -13,12 +23,15 @@ async function fetchHTML(url) {
   return res.text();
 }
 
+/**
+ * Extracts streaming links from HTML using a regex that matches "title" and "file" keys.
+ */
 async function extractLinks(url) {
   try {
     const html = await fetchHTML(url);
     const links = [];
+    // Regex to match key-value pairs for "title" and "file"
     const regex = /"title":\s*"([^"]+)",\s*"file":\s*"([^"]+)"/g;
-
     let match;
     while ((match = regex.exec(html))) {
       const [, lang, url] = match;
@@ -31,14 +44,19 @@ async function extractLinks(url) {
   }
 }
 
+/**
+ * Fetches streaming links for the given IMDb ID and type (movie or series).
+ * Optionally accepts season and episode for TV shows.
+ * This function calls multiple server endpoints—including Torrentio—to aggregate stream links.
+ */
 async function getStreamingLinks(imdbId, type, season = null, episode = null) {
   try {
     const streams = [];
-
+    // Build query parameters for season and episode if provided
     const seasonQuery = season ? `&s=${season}` : '';
     const episodeQuery = episode ? `&e=${episode}` : season ? '&e=1' : '';
 
-    // Server 1
+    // ----- Server 1 -----
     const server1Url =
       type === 'movie'
         ? `https://${decodeBase64(Link)}/embed/oplayer.php?id=${imdbId}`
@@ -52,7 +70,7 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
       });
     });
 
-    // Server 4
+    // ----- Server 4 -----
     const server4Url =
       type === 'movie'
         ? `https://${decodeBase64(Link)}/embed/player.php?id=${imdbId}`
@@ -66,7 +84,7 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
       });
     });
 
-    // Server 3
+    // ----- Server 3 -----
     const server3Url =
       type === 'movie'
         ? `https://viet.${decodeBase64(Link)}/movie/${imdbId}`
@@ -80,7 +98,7 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
       });
     });
 
-    // Server 5
+    // ----- Server 5 -----
     const server5Url =
       type === 'movie'
         ? `https://tom.${decodeBase64(Link)}/api/getVideoSource?type=movie&id=${imdbId}`
@@ -105,6 +123,35 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
       console.error('Error fetching server 5 links:', err);
     }
 
+    // ----- Torrentio Fetching -----
+    // For movies and series, build the Torrentio URL based on the Torrentio addon structure.
+    const torrentioUrl =
+      type === 'movie'
+        ? `https://torrentio.strem.fun/language=hindi%7Climit=3/stream/movie/${imdbId}.json`
+        : `https://torrentio.strem.fun/language=hindi%7Climit=3/stream/series/${imdbId}/${season ? `season=${season}` : 'season=1'}${episode ? `&episode=${episode}` : '&episode=1'}.json`;
+    try {
+      const resT = await fetch(torrentioUrl);
+      if (resT.ok) {
+        const dataT = await resT.json();
+        if (dataT.streams && dataT.streams.length > 0) {
+          dataT.streams.forEach(stream => {
+            // Torrentio returns stream objects that may contain infoHash and fileIdx.
+            // You might need additional processing to create a direct streaming URL.
+            // Here, if a direct URL is provided (via a "url" property), we use it.
+            streams.push({
+              server: 'Torrentio',
+              link: stream.url || stream.infoHash || '',
+              type: 'm3u8',
+            });
+          });
+        }
+      } else {
+        console.error('Torrentio fetch error:', resT.status, resT.statusText);
+      }
+    } catch (err) {
+      console.error('Error fetching torrentio links:', err);
+    }
+
     return streams;
   } catch (err) {
     console.error('Error in getStreamingLinks:', err);
@@ -112,6 +159,11 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
   }
 }
 
+/**
+ * API handler for fetching streaming links.
+ * Expects query parameters: imdbId, type (movie or series), and optionally season and episode.
+ * Handles CORS for specific origins.
+ */
 export default async function handler(req, res) {
   const { imdbId, type, season, episode } = req.query;
 
@@ -119,16 +171,16 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'IMDb ID and type are required.' });
   }
 
-  // Handle CORS for multiple origins: https://movies-react.vercel.app/ and localhost
-  const allowedOrigins = ['https://movies-react.vercel.app', 'http://localhost:5173']; // Add other localhost ports if necessary
+  // Handle CORS for allowed origins
+  const allowedOrigins = ['https://movies-react.vercel.app', 'http://localhost:5173'];
   const origin = req.headers.origin;
 
   if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin); // Allow only the specific origin
+    res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   } else {
-    res.setHeader('Access-Control-Allow-Origin', ''); // Deny access to others
+    res.setHeader('Access-Control-Allow-Origin', '');
   }
 
   try {
