@@ -1,54 +1,117 @@
-// fetchStreamData.js
+import fetch from 'node-fetch';
 
-// Base URL including default configuration (here: language=hindi and limit=3)
-const BASE_URL = "https://torrentio.strem.fun/language=hindi%7Climit=3";
+const BASE_URL = "https://torrentio.strem.fun/sort=seeders%7Clanguage=hindi";
 
-/**
- * Fetches stream data for a movie or series.
- *
- * @param {Object} options - Options for the request.
- * @param {string} options.type - Either "movie" or "series".
- * @param {string} options.id - The content ID (e.g. an IMDb ID).
- * @param {number} [options.season] - Season number (required for series).
- * @param {number} [options.episode] - Episode number (required for series).
- */
 async function fetchStreamData({ type, id, season, episode }) {
   let url;
   if (type === "movie") {
-    // For movies, build URL without extra query parameters.
     url = `${BASE_URL}/stream/movie/${id}.json`;
   } else if (type === "series") {
-    // For series, ensure season and episode are provided.
-    if (season === undefined || episode === undefined) {
-      console.error("For series, both season and episode numbers must be provided.");
-      return;
-    }
-    // Extra parameters are appended in the URL as "season=1&episode=2" before ".json"
-    const extra = `season=${season}&episode=${episode}`;
-    url = `${BASE_URL}/stream/series/${id}/${extra}.json`;
+    season = season || 1;
+    episode = episode || 1;
+    url = `${BASE_URL}/stream/series/${id}.json?season=${season}&episode=${episode}`;
   } else {
-    console.error("Unknown type. Please use 'movie' or 'series'.");
-    return;
+    throw new Error("Unknown type. Use 'movie' or 'series'.");
   }
 
+  console.log(`\nFetching data from: ${url}`);
   try {
     const response = await fetch(url);
-    if (!response.ok) {
-      console.error(`Error fetching stream data: ${response.status} ${response.statusText}`);
-      return;
-    }
-    const data = await response.json();
-    console.log("Stream data for", type, id, 
-                type === "series" ? `(Season: ${season}, Episode: ${episode})` : "", ":", data);
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    return await response.json();
   } catch (error) {
-    console.error("Fetch error:", error);
+    console.error(`Fetch failed: ${error}`);
+    throw error;
   }
 }
 
-// Example usage:
+async function getStreamingUrls(options) {
+  try {
+    const data = await fetchStreamData(options);
+    let trackers = [];
+    let streams = [];
 
-// Fetch stream data for a movie with a dummy ID.
-fetchStreamData({ type: "movie", id: "tt14948432" });
+    // Check if data is an array; if first element has trackers, extract them.
+    if (Array.isArray(data)) {
+      if (data.length > 0 && data[0].trackers) {
+        trackers = data[0].trackers;
+        streams = data.slice(1);
+      } else {
+        streams = data;
+      }
+    } else if (data && data.streams) {
+      streams = data.streams;
+    } else {
+      console.error("Invalid data format");
+      return [];
+    }
 
-// Fetch stream data for a series with dummy ID, season, and episode.
-fetchStreamData({ type: "series", id: "tt7654321", season: 1, episode: 2 });
+    // Process each stream to create a data list with file index, title, file name and generated link.
+    const streamList = streams.map((stream, idx) => {
+      // Use provided fileIdx or fallback to sequential index (1-indexed)
+      const fileIndex =
+        typeof stream.fileIdx === "number" ? stream.fileIdx : idx + 1;
+
+      // Use 'title' property if available, otherwise fallback to 'name'
+      const streamTitle = stream.title || stream.name || "Unknown Title";
+
+      // Extract file name from behaviorHints if available
+      const fileName =
+        stream.behaviorHints && stream.behaviorHints.filename
+          ? stream.behaviorHints.filename
+          : "Unknown File";
+
+      // Generate the link:
+      // If a direct URL is provided, use it; otherwise, generate a magnet link from infoHash.
+      let link = "";
+      if (stream.url) {
+        link = stream.url;
+      } else if (stream.infoHash) {
+        link = `magnet:?xt=urn:btih:${stream.infoHash}`;
+        // Append each tracker (if any) as a &tr parameter (URL-encoded)
+        if (trackers.length) {
+          trackers.forEach(tr => {
+            link += `&tr=${encodeURIComponent(tr)}`;
+          });
+        }
+      }
+
+      return {
+        fileIndex,
+        title: streamTitle,
+        fileName,
+        link
+      };
+    });
+
+    // Log the final data list
+    console.log("\nGenerated Data List:");
+    streamList.forEach(item => {
+      console.log(`Index: ${item.fileIndex}`);
+      console.log(`Title: ${item.title}`);
+      console.log(`File Name: ${item.fileName}`);
+      console.log(`Link: ${item.link}\n`);
+    });
+
+    return streamList;
+  } catch (error) {
+    console.error(`Error processing stream data: ${error.message}`);
+    return [];
+  }
+}
+
+// Example usage
+const TEST_IDS = {
+  MOVIES: ["tt14948432"] // Example movie ID
+};
+
+async function main() {
+  for (const movieId of TEST_IDS.MOVIES) {
+    console.log(`\nProcessing movie: ${movieId}`);
+    await getStreamingUrls({ type: "movie", id: movieId });
+  }
+}
+
+main();
+
+export { fetchStreamData, getStreamingUrls };

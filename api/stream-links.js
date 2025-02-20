@@ -51,7 +51,7 @@ async function extractLinks(url) {
  */
 async function getStreamingLinks(imdbId, type, season = null, episode = null) {
   try {
-    const streams = [];
+    const allStreams = [];
     // Build query parameters for season and episode if provided
     const seasonQuery = season ? `&s=${season}` : '';
     const episodeQuery = episode ? `&e=${episode}` : season ? '&e=1' : '';
@@ -63,7 +63,7 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
         : `https://${decodeBase64(Link)}/embed/oplayer.php?id=${imdbId}${seasonQuery}${episodeQuery}`;
     const links1 = await extractLinks(server1Url);
     links1.forEach(({ lang, url }) => {
-      streams.push({
+      allStreams.push({
         server: 'Server 1' + (lang ? ` - ${lang}` : ''),
         link: url,
         type: 'm3u8',
@@ -77,7 +77,7 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
         : `https://${decodeBase64(Link)}/embed/player.php?id=${imdbId}${seasonQuery}${episodeQuery}`;
     const links4 = await extractLinks(server4Url);
     links4.forEach(({ lang, url }) => {
-      streams.push({
+      allStreams.push({
         server: 'Server 4' + (lang ? ` - ${lang}` : ''),
         link: url,
         type: 'm3u8',
@@ -91,7 +91,7 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
         : `https://viet.${decodeBase64(Link)}/tv/${imdbId}/${season || 1}/${episode || 1}`;
     const links3 = await extractLinks(server3Url);
     links3.forEach(({ lang, url }) => {
-      streams.push({
+      allStreams.push({
         server: 'Server 3' + (lang ? ` - ${lang}` : ''),
         link: url,
         type: 'm3u8',
@@ -101,8 +101,8 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
     // ----- Server 5 -----
     const server5Url =
       type === 'movie'
-        ? `https://tom.${decodeBase64(Link)}/api/getVideoSource?type=movie&id=${imdbId}`
-        : `https://tom.${decodeBase64(Link)}/api/getVideoSource?type=tv&id=${imdbId}${seasonQuery}/${episode || 1}`;
+        ? `https://${decodeBase64(Link)}/api/getVideoSource?type=movie&id=${imdbId}`
+        : `https://${decodeBase64(Link)}/api/getVideoSource?type=tv&id=${imdbId}${seasonQuery}/${episode || 1}`;
     try {
       const res = await fetch(server5Url, {
         headers: {
@@ -113,7 +113,7 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
       });
       const data = await res.json();
       if (data.videoSource) {
-        streams.push({
+        allStreams.push({
           server: 'Server 5',
           link: data.videoSource,
           type: 'm3u8',
@@ -124,27 +124,47 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
     }
 
     // ----- Torrentio Fetching -----
-    // For movies and series, build the Torrentio URL based on the Torrentio addon structure.
     const torrentioUrl =
       type === 'movie'
         ? `https://torrentio.strem.fun/language=hindi%7Climit=3/stream/movie/${imdbId}.json`
-        : `https://torrentio.strem.fun/language=hindi%7Climit=3/stream/series/${imdbId}/${season ? `season=${season}` : 'season=1'}${episode ? `&episode=${episode}` : '&episode=1'}.json`;
+        : `https://torrentio.strem.fun/language=hindi%7Climit=3/stream/series/${imdbId}.json?season=${season ? season : 1}&episode=${episode ? episode : 1}`;
     try {
       const resT = await fetch(torrentioUrl);
       if (resT.ok) {
         const dataT = await resT.json();
-        if (dataT.streams && dataT.streams.length > 0) {
-          dataT.streams.forEach(stream => {
-            // Torrentio returns stream objects that may contain infoHash and fileIdx.
-            // You might need additional processing to create a direct streaming URL.
-            // Here, if a direct URL is provided (via a "url" property), we use it.
-            streams.push({
-              server: 'Torrentio',
-              link: stream.url || stream.infoHash || '',
-              type: 'm3u8',
-            });
-          });
+        let trackers = [];
+        let torrentioStreams = [];
+        if (Array.isArray(dataT)) {
+          // If the first element contains trackers, extract them.
+          if (dataT.length > 0 && dataT[0].trackers) {
+            trackers = dataT[0].trackers;
+            torrentioStreams = dataT.slice(1);
+          } else {
+            torrentioStreams = dataT;
+          }
+        } else if (dataT && dataT.streams) {
+          torrentioStreams = dataT.streams;
         }
+
+        torrentioStreams.forEach(stream => {
+          let link = '';
+          if (stream.url) {
+            link = stream.url;
+          } else if (stream.infoHash) {
+            link = `magnet:?xt=urn:btih:${stream.infoHash}`;
+            // Append each tracker as a URL parameter
+            if (trackers.length) {
+              trackers.forEach(tr => {
+                link += `&tr=${encodeURIComponent(tr)}`;
+              });
+            }
+          }
+          allStreams.push({
+            server: 'Torrentio',
+            link: link,
+            type: 'm3u8',
+          });
+        });
       } else {
         console.error('Torrentio fetch error:', resT.status, resT.statusText);
       }
@@ -152,7 +172,7 @@ async function getStreamingLinks(imdbId, type, season = null, episode = null) {
       console.error('Error fetching torrentio links:', err);
     }
 
-    return streams;
+    return allStreams;
   } catch (err) {
     console.error('Error in getStreamingLinks:', err);
     return [];
