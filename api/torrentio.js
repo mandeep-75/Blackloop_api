@@ -1,4 +1,4 @@
-import fetch from 'node-fetch';
+import fetch from "node-fetch";
 
 const BASE_URL = "https://torrentio.strem.fun/sort=seeders%7Clanguage=hindi";
 
@@ -68,7 +68,8 @@ async function getStreamingUrls(options) {
     // Process each stream entry.
     const streamList = streams.map((stream, idx) => {
       // Use provided fileIdx or fallback to sequential index (1-indexed)
-      const fileIndex = typeof stream.fileIdx === "number" ? stream.fileIdx : idx + 1;
+      const fileIndex =
+        typeof stream.fileIdx === "number" ? stream.fileIdx : idx + 1;
       // Use 'title' property if available, otherwise fallback to 'name'
       const streamTitle = stream.title || stream.name || "Unknown Title";
       // Extract file name from behaviorHints if available
@@ -84,7 +85,7 @@ async function getStreamingUrls(options) {
       } else if (stream.infoHash) {
         link = `magnet:?xt=urn:btih:${stream.infoHash}`;
         if (trackers.length) {
-          trackers.forEach(tr => {
+          trackers.forEach((tr) => {
             link += `&tr=${encodeURIComponent(tr)}`;
           });
         }
@@ -94,7 +95,7 @@ async function getStreamingUrls(options) {
         fileIndex,
         title: streamTitle,
         fileName,
-        link
+        link,
       };
     });
 
@@ -115,25 +116,37 @@ export default async function handler(req, res) {
   const { imdbId, type, season, episode } = req.query;
 
   if (!imdbId || !type) {
-    return res.status(400).json({ error: 'IMDb ID and type are required.' });
+    return res.status(400).json({ error: "IMDb ID and type are required." });
   }
 
   // CORS handling for allowed origins.
-  const allowedOrigins = ['https://movies-react.vercel.app', 'http://localhost:5173'];
+  const allowedOrigins = [
+    "https://movies-react.vercel.app",
+    "http://localhost:5173",
+  ];
   const origin = req.headers.origin;
+
   if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization"
+    );
   } else {
-    res.setHeader('Access-Control-Allow-Origin', '');
+    res.setHeader("Access-Control-Allow-Origin", "");
   }
 
   try {
-    const streams = await getStreamingUrls({ type, id: imdbId, season, episode });
+    const streams = await getStreamingUrls({
+      type,
+      id: imdbId,
+      season,
+      episode,
+    });
     res.json({ streams });
   } catch (err) {
-    console.error('Error fetching streaming links:', err);
-    res.status(500).json({ error: 'Failed to fetch streaming links.' });
+    console.error("Error fetching streaming links:", err);
+    res.status(500).json({ error: "Failed to fetch streaming links." });
   }
 }
